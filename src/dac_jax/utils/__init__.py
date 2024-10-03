@@ -72,53 +72,53 @@ def convert_torch_weights_to_numpy(
     np.save(write_path, weights, allow_pickle=allow_pickle)
 
 
-@argbind.bind(group="download_encodec", positional=True, without_prefix=True)
-def download_encodec(
-    name: str = "facebook/musicgen-small",
-):
-    if (
-        "DAC_JAX_CACHE" in environ
-        and environ["DAC_JAX_CACHE"].strip()
-        and os.path.isabs(environ["DAC_JAX_CACHE"])
-    ):
-        cache_home = environ["DAC_JAX_CACHE"]
-        cache_home = Path(cache_home)
-    else:
-        cache_home = Path.home() / ".cache" / "dac_jax"
+# @argbind.bind(group="download_encodec", positional=True, without_prefix=True)
+# def download_encodec(
+#     name: str = "facebook/musicgen-small",
+# ):
+#     if (
+#         "DAC_JAX_CACHE" in environ
+#         and environ["DAC_JAX_CACHE"].strip()
+#         and os.path.isabs(environ["DAC_JAX_CACHE"])
+#     ):
+#         cache_home = environ["DAC_JAX_CACHE"]
+#         cache_home = Path(cache_home)
+#     else:
+#         cache_home = Path.home() / ".cache" / "dac_jax"
 
-    safename = name.replace("/", "_")
+#     safename = name.replace("/", "_")
 
-    metadata_path = cache_home / f"encodec_weights_{safename}.json"
-    jax_write_path = cache_home / f"encodec_jax_weights_{safename}.npy"
+#     metadata_path = cache_home / f"encodec_weights_{safename}.json"
+#     jax_write_path = cache_home / f"encodec_jax_weights_{safename}.npy"
 
-    if jax_write_path.exists() and metadata_path.exists():
-        return jax_write_path, metadata_path
+#     if jax_write_path.exists() and metadata_path.exists():
+#         return jax_write_path, metadata_path
 
-    torch_model_path = cache_home / f"encodec_weights_{safename}.pth"
+#     torch_model_path = cache_home / f"encodec_weights_{safename}.pth"
 
-    if not torch_model_path.exists():
-        torch_model_path.parent.mkdir(parents=True, exist_ok=True)
+#     if not torch_model_path.exists():
+#         torch_model_path.parent.mkdir(parents=True, exist_ok=True)
 
-        from audiocraft.models.loaders import load_compression_model_ckpt
+#         from audiocraft.models.loaders import load_compression_model_ckpt
 
-        file_or_url_or_id = name
-        pkg = load_compression_model_ckpt(file_or_url_or_id, cache_dir=str(cache_home))
-        cfg = OmegaConf.create(pkg["xp.cfg"])
+#         file_or_url_or_id = name
+#         pkg = load_compression_model_ckpt(file_or_url_or_id, cache_dir=str(cache_home))
+#         cfg = OmegaConf.create(pkg["xp.cfg"])
 
-        weights = pkg["best_state"]
-        weights = {key: value.numpy() for key, value in weights.items()}
+#         weights = pkg["best_state"]
+#         weights = {key: value.numpy() for key, value in weights.items()}
 
-        jax_write_path.parent.mkdir(parents=True, exist_ok=True)
+#         jax_write_path.parent.mkdir(parents=True, exist_ok=True)
 
-        allow_pickle = (
-            True  # todo: https://github.com/descriptinc/descript-audio-codec/issues/53
-        )
+#         allow_pickle = (
+#             True  # todo: https://github.com/descriptinc/descript-audio-codec/issues/53
+#         )
 
-        np.save(jax_write_path, weights, allow_pickle=allow_pickle)
+#         np.save(jax_write_path, weights, allow_pickle=allow_pickle)
 
-        OmegaConf.save(config=cfg, f=metadata_path)
+#         OmegaConf.save(config=cfg, f=metadata_path)
 
-    return jax_write_path, metadata_path
+#     return jax_write_path, metadata_path
 
 
 # todo: we don't call this function `download` because that would conflict with the PyTorch implementation's `download`.
@@ -211,97 +211,97 @@ def download_model(
     return jax_write_path, metadata_path
 
 
-def load_encodec_model(
-    name: str = "facebook/musicgen-small",
-    load_path: str = None,
-    metadata_path: str = None,
-):
-    if not load_path or not metadata_path:
-        load_path, metadata_path = download_encodec(name)
+# def load_encodec_model(
+#     name: str = "facebook/musicgen-small",
+#     load_path: str = None,
+#     metadata_path: str = None,
+# ):
+#     if not load_path or not metadata_path:
+#         load_path, metadata_path = download_encodec(name)
 
-    kwargs = OmegaConf.load(metadata_path)
+#     kwargs = OmegaConf.load(metadata_path)
 
-    seanet_kwargs = kwargs["seanet"]
+#     seanet_kwargs = kwargs["seanet"]
 
-    common_kwargs = {
-        "channels": kwargs["channels"],
-        "dimension": seanet_kwargs["dimension"],
-        "n_filters": seanet_kwargs["n_filters"],
-        "n_residual_layers": seanet_kwargs["n_residual_layers"],
-        "ratios": seanet_kwargs["ratios"],
-        "activation": seanet_kwargs["activation"].lower(),
-        "activation_params": OmegaConf.to_object(seanet_kwargs["activation_params"]),
-        "norm": seanet_kwargs["norm"],
-        "norm_params": OmegaConf.to_object(seanet_kwargs["norm_params"]),
-        "kernel_size": seanet_kwargs["kernel_size"],
-        "last_kernel_size": seanet_kwargs["last_kernel_size"],
-        "residual_kernel_size": seanet_kwargs["residual_kernel_size"],
-        "dilation_base": seanet_kwargs["dilation_base"],
-        "causal": kwargs["encodec"]["causal"],
-        "pad_mode": seanet_kwargs["pad_mode"],
-        "true_skip": seanet_kwargs["true_skip"],
-        "compress": seanet_kwargs["compress"],
-        "lstm": seanet_kwargs["compress"],
-        "disable_norm_outer_blocks": seanet_kwargs["disable_norm_outer_blocks"],
-    }
-    encoder_override_kwargs = {}
-    decoder_override_kwargs = {
-        "trim_right_ratio": seanet_kwargs["decoder"]["trim_right_ratio"],
-        "final_activation": seanet_kwargs["decoder"]["final_activation"],
-        "final_activation_params": seanet_kwargs["decoder"]["final_activation_params"],
-    }
-    encoder_kwargs = {**common_kwargs, **encoder_override_kwargs}
-    decoder_kwargs = {**common_kwargs, **decoder_override_kwargs}
+#     common_kwargs = {
+#         "channels": kwargs["channels"],
+#         "dimension": seanet_kwargs["dimension"],
+#         "n_filters": seanet_kwargs["n_filters"],
+#         "n_residual_layers": seanet_kwargs["n_residual_layers"],
+#         "ratios": seanet_kwargs["ratios"],
+#         "activation": seanet_kwargs["activation"].lower(),
+#         "activation_params": OmegaConf.to_object(seanet_kwargs["activation_params"]),
+#         "norm": seanet_kwargs["norm"],
+#         "norm_params": OmegaConf.to_object(seanet_kwargs["norm_params"]),
+#         "kernel_size": seanet_kwargs["kernel_size"],
+#         "last_kernel_size": seanet_kwargs["last_kernel_size"],
+#         "residual_kernel_size": seanet_kwargs["residual_kernel_size"],
+#         "dilation_base": seanet_kwargs["dilation_base"],
+#         "causal": kwargs["encodec"]["causal"],
+#         "pad_mode": seanet_kwargs["pad_mode"],
+#         "true_skip": seanet_kwargs["true_skip"],
+#         "compress": seanet_kwargs["compress"],
+#         "lstm": seanet_kwargs["compress"],
+#         "disable_norm_outer_blocks": seanet_kwargs["disable_norm_outer_blocks"],
+#     }
+#     encoder_override_kwargs = {}
+#     decoder_override_kwargs = {
+#         "trim_right_ratio": seanet_kwargs["decoder"]["trim_right_ratio"],
+#         "final_activation": seanet_kwargs["decoder"]["final_activation"],
+#         "final_activation_params": seanet_kwargs["decoder"]["final_activation_params"],
+#     }
+#     encoder_kwargs = {**common_kwargs, **encoder_override_kwargs}
+#     decoder_kwargs = {**common_kwargs, **decoder_override_kwargs}
 
-    rvq_kwargs = kwargs["rvq"]
-    quantizer_kwargs = {
-        "dimension": seanet_kwargs["dimension"],
-        "n_q": rvq_kwargs["n_q"],
-        "q_dropout": rvq_kwargs["q_dropout"],
-        "bins": rvq_kwargs["bins"],
-        "decay": rvq_kwargs["decay"],
-        "kmeans_init": rvq_kwargs["kmeans_init"],
-        "kmeans_iters": rvq_kwargs["kmeans_iters"],
-        "threshold_ema_dead_code": rvq_kwargs["threshold_ema_dead_code"],
-        "orthogonal_reg_weight": rvq_kwargs["orthogonal_reg_weight"],
-        "orthogonal_reg_active_codes_only": rvq_kwargs[
-            "orthogonal_reg_active_codes_only"
-        ],
-        "orthogonal_reg_max_codes": None,  # todo:
-    }
+#     rvq_kwargs = kwargs["rvq"]
+#     quantizer_kwargs = {
+#         "dimension": seanet_kwargs["dimension"],
+#         "n_q": rvq_kwargs["n_q"],
+#         "q_dropout": rvq_kwargs["q_dropout"],
+#         "bins": rvq_kwargs["bins"],
+#         "decay": rvq_kwargs["decay"],
+#         "kmeans_init": rvq_kwargs["kmeans_init"],
+#         "kmeans_iters": rvq_kwargs["kmeans_iters"],
+#         "threshold_ema_dead_code": rvq_kwargs["threshold_ema_dead_code"],
+#         "orthogonal_reg_weight": rvq_kwargs["orthogonal_reg_weight"],
+#         "orthogonal_reg_active_codes_only": rvq_kwargs[
+#             "orthogonal_reg_active_codes_only"
+#         ],
+#         "orthogonal_reg_max_codes": None,  # todo:
+#     }
 
-    encoder = SEANetEncoder(**encoder_kwargs)
-    decoder = SEANetDecoder(**decoder_kwargs)
-    quantizer = ResidualVectorQuantizer(**quantizer_kwargs)
+#     encoder = SEANetEncoder(**encoder_kwargs)
+#     decoder = SEANetDecoder(**decoder_kwargs)
+#     quantizer = ResidualVectorQuantizer(**quantizer_kwargs)
 
-    sample_rate = kwargs["sample_rate"]
+#     sample_rate = kwargs["sample_rate"]
 
-    encodec_model = EncodecModel(
-        encoder=encoder,
-        decoder=decoder,
-        quantizer=quantizer,
-        causal=kwargs["encodec"]["causal"],
-        renormalize=kwargs["encodec"]["renormalize"],
-        frame_rate=sample_rate // encoder.hop_length,
-        sample_rate=sample_rate,
-        channels=kwargs["channels"],
-    )
+#     encodec_model = EncodecModel(
+#         encoder=encoder,
+#         decoder=decoder,
+#         quantizer=quantizer,
+#         causal=kwargs["encodec"]["causal"],
+#         renormalize=kwargs["encodec"]["renormalize"],
+#         frame_rate=sample_rate // encoder.hop_length,
+#         sample_rate=sample_rate,
+#         channels=kwargs["channels"],
+#     )
 
-    allow_pickle = (
-        True  # todo: https://github.com/descriptinc/descript-audio-codec/issues/53
-    )
+#     allow_pickle = (
+#         True  # todo: https://github.com/descriptinc/descript-audio-codec/issues/53
+#     )
 
-    torch_params = np.load(load_path, allow_pickle=allow_pickle)
-    torch_params = torch_params.item()  # todo
+#     torch_params = np.load(load_path, allow_pickle=allow_pickle)
+#     torch_params = torch_params.item()  # todo
 
-    variables = load_torch_weights_encodec.torch_to_linen(
-        torch_params,
-        encodec_model.encoder.ratios,
-        encodec_model.decoder.ratios,
-        encodec_model.num_codebooks,
-    )
+#     variables = load_torch_weights_encodec.torch_to_linen(
+#         torch_params,
+#         encodec_model.encoder.ratios,
+#         encodec_model.decoder.ratios,
+#         encodec_model.num_codebooks,
+#     )
 
-    return encodec_model, variables
+#     return encodec_model, variables
 
 
 def load_model(

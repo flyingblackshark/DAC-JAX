@@ -6,7 +6,7 @@ from dac_jax.utils import download_model
 from dac_jax.utils.decode import decode
 from dac_jax.utils.encode import encode
 
-STAGES = ["encode", "decode", "download_model", "download_encodec"]
+STAGES = ["encode", "decode", "download_model"]
 
 
 def run(stage: str):
