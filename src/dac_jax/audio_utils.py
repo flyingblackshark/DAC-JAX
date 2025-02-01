@@ -8,7 +8,7 @@ import dm_aux as aux
 from einops import rearrange
 import jax.numpy as jnp
 import jax.scipy.signal
-import jaxloudnorm as jln
+#import jaxloudnorm as jln
 import librosa
 
 
@@ -186,88 +186,88 @@ def db2linear(decibels: jnp.ndarray):
     return jnp.pow(10.0, decibels / 20.0)
 
 
-def volume_norm(
-    audio_data: jnp.ndarray,
-    target_db: jnp.ndarray,
-    sample_rate: int,
-    filter_class: str = "K-weighting",
-    block_size: float = 0.400,
-    min_loudness: float = -70,
-    zeros: int = 2048,
-):
-    """Calculates loudness using an implementation of ITU-R BS.1770-4.
-    Allows control over gating block size and frequency weighting filters for
-    additional control. Measure the integrated gated loudness of a signal.
+# def volume_norm(
+#     audio_data: jnp.ndarray,
+#     target_db: jnp.ndarray,
+#     sample_rate: int,
+#     filter_class: str = "K-weighting",
+#     block_size: float = 0.400,
+#     min_loudness: float = -70,
+#     zeros: int = 2048,
+# ):
+#     """Calculates loudness using an implementation of ITU-R BS.1770-4.
+#     Allows control over gating block size and frequency weighting filters for
+#     additional control. Measure the integrated gated loudness of a signal.
 
-    API is derived from PyLoudnorm, but this implementation is ported to PyTorch
-    and is tensorized across batches. When on GPU, an FIR approximation of the IIR
-    filters is used to compute loudness for speed.
+#     API is derived from PyLoudnorm, but this implementation is ported to PyTorch
+#     and is tensorized across batches. When on GPU, an FIR approximation of the IIR
+#     filters is used to compute loudness for speed.
 
-    Uses the weighting filters and block size defined by the meter
-    the integrated loudness is measured based upon the gating algorithm
-    defined in the ITU-R BS.1770-4 specification.
+#     Uses the weighting filters and block size defined by the meter
+#     the integrated loudness is measured based upon the gating algorithm
+#     defined in the ITU-R BS.1770-4 specification.
 
-    Parameters
-    ----------
-    audio_data: jnp.ndarray
-        audio signal [B, C, T]
-    target_db: jnp.ndarray
-        array of target decibel loudnesses [B]
-    sample_rate: int
-        sample rate of audio_data
-    filter_class : str, optional
-        Class of weighting filter used.
-        K-weighting' (default), 'Fenton/Lee 1'
-        'Fenton/Lee 2', 'Dash et al.'
-        by default "K-weighting"
-    block_size : float, optional
-        Gating block size in seconds, by default 0.400
-    min_loudness : float, optional
-        Minimum loudness in decibels
-    zeros : int, optional
-        The length of the FIR filter. You should pick a power of 2 between 512 and 4096.
+#     Parameters
+#     ----------
+#     audio_data: jnp.ndarray
+#         audio signal [B, C, T]
+#     target_db: jnp.ndarray
+#         array of target decibel loudnesses [B]
+#     sample_rate: int
+#         sample rate of audio_data
+#     filter_class : str, optional
+#         Class of weighting filter used.
+#         K-weighting' (default), 'Fenton/Lee 1'
+#         'Fenton/Lee 2', 'Dash et al.'
+#         by default "K-weighting"
+#     block_size : float, optional
+#         Gating block size in seconds, by default 0.400
+#     min_loudness : float, optional
+#         Minimum loudness in decibels
+#     zeros : int, optional
+#         The length of the FIR filter. You should pick a power of 2 between 512 and 4096.
 
-    Returns
-    -------
-    jnp.ndarray
-        Audio normalized to `target_db` loudness
-    jnp.ndarray
-        Loudness of original audio data.
+#     Returns
+#     -------
+#     jnp.ndarray
+#         Audio normalized to `target_db` loudness
+#     jnp.ndarray
+#         Loudness of original audio data.
 
-    Reference: https://github.com/descriptinc/audiotools/blob/master/audiotools/core/loudness.py
-    """
+#     Reference: https://github.com/descriptinc/audiotools/blob/master/audiotools/core/loudness.py
+#     """
 
-    padded_audio = audio_data
+#     padded_audio = audio_data
 
-    original_length = padded_audio.shape[-1]
-    signal_duration = original_length / sample_rate
+#     original_length = padded_audio.shape[-1]
+#     signal_duration = original_length / sample_rate
 
-    if signal_duration < block_size:
-        padded_audio = jnp.pad(
-            padded_audio,
-            pad_width=(
-                (0, 0),
-                (0, 0),
-                (0, int(block_size * sample_rate) - original_length),
-            ),
-        )
+#     if signal_duration < block_size:
+#         padded_audio = jnp.pad(
+#             padded_audio,
+#             pad_width=(
+#                 (0, 0),
+#                 (0, 0),
+#                 (0, int(block_size * sample_rate) - original_length),
+#             ),
+#         )
 
-    # create BS.1770 meter
-    meter = jln.Meter(
-        sample_rate,
-        filter_class=filter_class,
-        block_size=block_size,
-        use_fir=True,
-        zeros=zeros,
-    )
+#     # create BS.1770 meter
+#     meter = jln.Meter(
+#         sample_rate,
+#         filter_class=filter_class,
+#         block_size=block_size,
+#         use_fir=True,
+#         zeros=zeros,
+#     )
 
-    # measure loudness
-    loudness = jax.vmap(meter.integrated_loudness)(
-        rearrange(padded_audio, "b c t -> b t c")
-    )
+#     # measure loudness
+#     loudness = jax.vmap(meter.integrated_loudness)(
+#         rearrange(padded_audio, "b c t -> b t c")
+#     )
 
-    loudness = jnp.maximum(loudness, jnp.full_like(loudness, min_loudness))
+#     loudness = jnp.maximum(loudness, jnp.full_like(loudness, min_loudness))
 
-    audio_data = audio_data * db2linear(target_db - loudness)[:, None, None]
+#     audio_data = audio_data * db2linear(target_db - loudness)[:, None, None]
 
-    return audio_data, loudness
+#     return audio_data, loudness

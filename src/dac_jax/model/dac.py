@@ -16,7 +16,7 @@ import tqdm
 
 from dac_jax.nn.layers import Snake1d, WNConv1d, WNConvTranspose1d
 from dac_jax.nn.quantize import ResidualVectorQuantize
-from dac_jax.audio_utils import volume_norm
+#from dac_jax.audio_utils import volume_norm
 from dac_jax.model.core import CompressionModel
 from dac_jax.nn.encodec_quantize import QuantizedResult
 
@@ -440,39 +440,39 @@ class DAC(CompressionModel):
         codes = q_res.codes
         return codes, None
 
-    def encode_to_dac(
-        self,
-        audio_data: jnp.ndarray,
-        sample_rate: int,
-        n_quantizers: int = None,
-        target_db=-16,
-    ):
-        original_length = audio_data.shape[-1]
+    # def encode_to_dac(
+    #     self,
+    #     audio_data: jnp.ndarray,
+    #     sample_rate: int,
+    #     n_quantizers: int = None,
+    #     target_db=-16,
+    # ):
+    #     original_length = audio_data.shape[-1]
 
-        if target_db is not None:
-            audio_data, input_db = volume_norm(audio_data, target_db, sample_rate)
-        else:
-            input_db = None
+    #     if target_db is not None:
+    #         audio_data, input_db = volume_norm(audio_data, target_db, sample_rate)
+    #     else:
+    #         input_db = None
 
-        audio_data = self.preprocess(audio_data, sample_rate)
+    #     audio_data = self.preprocess(audio_data, sample_rate)
 
-        channels = audio_data.shape[-2]
+    #     channels = audio_data.shape[-2]
 
-        emb = self.encoder(audio_data)
-        q_res = self.quantizer(emb, n_quantizers=n_quantizers, train=False)
+    #     emb = self.encoder(audio_data)
+    #     q_res = self.quantizer(emb, n_quantizers=n_quantizers, train=False)
 
-        chunk_length = q_res.codes.shape[-1]
+    #     chunk_length = q_res.codes.shape[-1]
 
-        dac_file = DACFile(
-            codes=q_res.codes,
-            chunk_length=chunk_length,
-            original_length=original_length,
-            input_db=input_db,
-            channels=channels,
-            sample_rate=sample_rate,
-            dac_version=SUPPORTED_VERSIONS[-1],
-        )
-        return dac_file
+    #     dac_file = DACFile(
+    #         codes=q_res.codes,
+    #         chunk_length=chunk_length,
+    #         original_length=original_length,
+    #         input_db=input_db,
+    #         channels=channels,
+    #         sample_rate=sample_rate,
+    #         dac_version=SUPPORTED_VERSIONS[-1],
+    #     )
+    #     return dac_file
 
     def compress_chunk(
         self, audio_data: jnp.ndarray, n_quantizers: int = None
@@ -509,8 +509,8 @@ class DAC(CompressionModel):
         out = self.decoder(z_q)
 
         # Normalize to original loudness
-        if input_db is not None:
-            out, _ = volume_norm(out, input_db, self.sample_rate)
+        # if input_db is not None:
+        #     out, _ = volume_norm(out, input_db, self.sample_rate)
 
         # Resample
         if original_sr is not None:
@@ -621,10 +621,10 @@ class DAC(CompressionModel):
         else:
             audio_signal = resample(audio_signal, original_sr, self.sample_rate)
 
-            if normalize_db is not None:
-                audio_signal, input_db = volume_norm(
-                    audio_signal, normalize_db, self.sample_rate
-                )
+            # if normalize_db is not None:
+            #     audio_signal, input_db = volume_norm(
+            #         audio_signal, normalize_db, self.sample_rate
+            #     )
 
         audio_signal = self.ensure_max_of_audio(audio_signal)
 
@@ -746,8 +746,8 @@ class DAC(CompressionModel):
             raise RuntimeError("Not implemented yet")
         else:
             # Normalize to original loudness
-            if obj.input_db is not None:
-                recons, _ = volume_norm(recons, obj.input_db, self.sample_rate)
+            # if obj.input_db is not None:
+            #     recons, _ = volume_norm(recons, obj.input_db, self.sample_rate)
 
             # Resample
             recons = resample(recons, old_sr=self.sample_rate, new_sr=obj.sample_rate)
