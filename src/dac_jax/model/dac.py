@@ -5,7 +5,7 @@ from pathlib import Path
 import timeit
 from typing import List, Union, Tuple, Optional
 
-#from audiotree.resample import resample
+from audiotree.resample import resample
 from einops import rearrange
 from flax import linen as nn
 import jax
@@ -513,8 +513,8 @@ class DAC(CompressionModel):
         #     out, _ = volume_norm(out, input_db, self.sample_rate)
 
         # Resample
-        # if original_sr is not None:
-        #     out = resample(out, old_sr=self.sample_rate, new_sr=original_sr)
+        if original_sr is not None:
+            out = resample(out, old_sr=self.sample_rate, new_sr=original_sr)
 
         # out contains extra padding added by the encoder and decoder
         if length is not None:
