@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import chex
-import dm_aux as aux
+#import dm_aux as aux
 from einops import rearrange
 import jax.numpy as jnp
 import jax.scipy.signal
@@ -105,20 +105,29 @@ def stft(
 
     x = rearrange(x, "b c t -> (b c) t")
 
-    if window == "sqrt_hann":
-        from scipy import signal as scipy_signal
+    # if window == "sqrt_hann":
+    #     from scipy import signal as scipy_signal
 
-        window = jnp.sqrt(scipy_signal.get_window("hann", frame_length))
+    #     window = jnp.sqrt(scipy_signal.get_window("hann", frame_length))
 
     # todo: https://github.com/google-deepmind/dm_aux/issues/2
-    stft_data = aux.spectral.stft(
+    _,_,stft_data = jax.scipy.signal.stft(
         x,
-        n_fft=frame_length,
-        frame_step=frame_step,
-        window_fn=window,
-        pad_mode=padding_type,
-        pad=aux.spectral.Pad.BOTH,
+        nperseg=frame_length,
+        noverlap=frame_length - frame_step,
+        nfft=frame_length,
+        return_onesided=False,
     )
+    spectrum_win = jnp.sin(jnp.linspace(0, jnp.pi, 2048, endpoint=False)) ** 2
+    stft_data *= spectrum_win.sum()
+    # stft_data = aux.spectral.stft(
+    #     x,
+    #     n_fft=frame_length,
+    #     frame_step=frame_step,
+    #     window_fn=window,
+    #     pad_mode=padding_type,
+    #     pad=aux.spectral.Pad.BOTH,
+    # )
     stft_data = rearrange(stft_data, "(b c) nt nf -> b c nf nt", b=batch_size)
 
     if match_stride:
