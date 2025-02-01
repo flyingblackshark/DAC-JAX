@@ -5,7 +5,7 @@ from pathlib import Path
 import timeit
 from typing import List, Union, Tuple, Optional
 
-from audiotree.resample import resample
+#from audiotree.resample import resample
 from einops import rearrange
 from flax import linen as nn
 import jax
@@ -513,8 +513,8 @@ class DAC(CompressionModel):
         #     out, _ = volume_norm(out, input_db, self.sample_rate)
 
         # Resample
-        if original_sr is not None:
-            out = resample(out, old_sr=self.sample_rate, new_sr=original_sr)
+        # if original_sr is not None:
+        #     out = resample(out, old_sr=self.sample_rate, new_sr=original_sr)
 
         # out contains extra padding added by the encoder and decoder
         if length is not None:
@@ -695,68 +695,68 @@ class DAC(CompressionModel):
 
         return dac_file
 
-    def decompress(
-        self,
-        decompress_chunk,
-        obj: Union[str, Path, DACFile],
-        verbose=False,
-        benchmark=False,
-    ) -> jnp.ndarray:
+    # def decompress(
+    #     self,
+    #     decompress_chunk,
+    #     obj: Union[str, Path, DACFile],
+    #     verbose=False,
+    #     benchmark=False,
+    # ) -> jnp.ndarray:
 
-        if isinstance(obj, (str, Path)):
-            obj = DACFile.load(obj)
+    #     if isinstance(obj, (str, Path)):
+    #         obj = DACFile.load(obj)
 
-        range_fn = range if not verbose else tqdm.trange
-        codes = obj.codes
-        chunk_length = obj.chunk_length
-        recons = []
+    #     range_fn = range if not verbose else tqdm.trange
+    #     codes = obj.codes
+    #     chunk_length = obj.chunk_length
+    #     recons = []
 
-        for i in range_fn(0, codes.shape[-1], chunk_length):
-            c = codes[..., i : i + chunk_length]
-            r = decompress_chunk(c)
-            recons.append(r)
+    #     for i in range_fn(0, codes.shape[-1], chunk_length):
+    #         c = codes[..., i : i + chunk_length]
+    #         r = decompress_chunk(c)
+    #         recons.append(r)
 
-        if benchmark:
-            c = codes[..., :chunk_length]
-            execution_times = timeit.repeat(
-                "decompress_chunk(c).block_until_ready()",
-                number=1,
-                repeat=200,
-                globals={"decompress_chunk": decompress_chunk, "c": c},
-            )
-            execution_times = np.array(execution_times) * 1000  # convert to ms
-            mean_time = execution_times.mean()
-            median_time = np.median(execution_times)
-            min_time = execution_times.min()
-            max_time = execution_times.max()
-            std_time = execution_times.std()
+    #     if benchmark:
+    #         c = codes[..., :chunk_length]
+    #         execution_times = timeit.repeat(
+    #             "decompress_chunk(c).block_until_ready()",
+    #             number=1,
+    #             repeat=200,
+    #             globals={"decompress_chunk": decompress_chunk, "c": c},
+    #         )
+    #         execution_times = np.array(execution_times) * 1000  # convert to ms
+    #         mean_time = execution_times.mean()
+    #         median_time = np.median(execution_times)
+    #         min_time = execution_times.min()
+    #         max_time = execution_times.max()
+    #         std_time = execution_times.std()
 
-            print(f"Decompress--Mean execution time: {mean_time:.2f} ms")
-            print(f"Decompress--Median execution time: {median_time:.2f} ms")
-            print(f"Decompress--Min execution time: {min_time:.2f} ms")
-            print(f"Decompress--Max execution time: {max_time:.2f} ms")
-            print(f"Decompress--Std execution time: {std_time:.2f} ms")
+    #         print(f"Decompress--Mean execution time: {mean_time:.2f} ms")
+    #         print(f"Decompress--Median execution time: {median_time:.2f} ms")
+    #         print(f"Decompress--Min execution time: {min_time:.2f} ms")
+    #         print(f"Decompress--Max execution time: {max_time:.2f} ms")
+    #         print(f"Decompress--Std execution time: {std_time:.2f} ms")
 
-        recons = jnp.concatenate(recons, axis=-1)
+    #     recons = jnp.concatenate(recons, axis=-1)
 
-        use_ffmpeg = recons.shape[-1] >= 10 * 60 * self.sample_rate
+    #     use_ffmpeg = recons.shape[-1] >= 10 * 60 * self.sample_rate
 
-        if use_ffmpeg:
-            # todo: use ffmpeg if the audio is over 10 minutes long
-            raise RuntimeError("Not implemented yet")
-        else:
-            # Normalize to original loudness
-            # if obj.input_db is not None:
-            #     recons, _ = volume_norm(recons, obj.input_db, self.sample_rate)
+    #     if use_ffmpeg:
+    #         # todo: use ffmpeg if the audio is over 10 minutes long
+    #         raise RuntimeError("Not implemented yet")
+    #     else:
+    #         # Normalize to original loudness
+    #         # if obj.input_db is not None:
+    #         #     recons, _ = volume_norm(recons, obj.input_db, self.sample_rate)
 
-            # Resample
-            recons = resample(recons, old_sr=self.sample_rate, new_sr=obj.sample_rate)
+    #         # Resample
+    #         recons = resample(recons, old_sr=self.sample_rate, new_sr=obj.sample_rate)
 
-        recons = recons[..., : obj.original_length]
+    #     recons = recons[..., : obj.original_length]
 
-        recons = recons.reshape(-1, obj.channels, obj.original_length)
+    #     recons = recons.reshape(-1, obj.channels, obj.original_length)
 
-        return recons
+    #     return recons
 
 
 def receptive_field_test():
